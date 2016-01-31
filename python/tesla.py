@@ -21,6 +21,8 @@ form2 = '1e8dcuI-Z1jk8mapxdnSsRfkMdEI3KonJBKlyqNCYfZZ'
 def readconfig():
     try:
         f = open('config.json', 'r')
+        j = json.load(f)
+        return j
     except IOError:
         configuration = {'emailFromAddr':'joesmith@gmail.com',
              'emailFromPassword':'supersecretpassword',
@@ -32,7 +34,7 @@ def readconfig():
         quit()
 
 def main():
-    readconfig()
+    configuration = readconfig()
     ser = serial.Serial('/dev/ttyACM0') #connection to arduino
     startChargeTime = datetime.datetime.now()
     endChargeTIme = datetime.datetime.now()
