@@ -34,6 +34,9 @@ def readconfig():
         quit()
 
 def main():
+    global count
+    global update
+    global prevI
     configuration = readconfig()
     ser = serial.Serial('/dev/ttyACM0') #connection to arduino
     startChargeTime = datetime.datetime.now()

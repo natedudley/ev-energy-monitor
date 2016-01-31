@@ -26,7 +26,7 @@ void loop() {
   inches = microsecondsToInches(duration);
   cm = microsecondsToCentimeters(duration);
 
-  Serial.print("proximity ")
+  Serial.print("proximity ");
   Serial.print(inches);
   Serial.print("in, ");
   Serial.print(cm);
