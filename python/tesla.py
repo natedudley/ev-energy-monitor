@@ -14,12 +14,14 @@ count = 0
 update = 10
 prevI = 0;
 fmt = "%Y-%m-%d %H:%M:%S %Z%z"
+startChargeTime = datetime.datetime.now()
 
 srcEmailAddr = 'joesmith@gmail.com'
 srcEmailPwd = 'supersecretpassword'
 dstEmailAddr = '4252060411@txt.att.net'
 form1 = '1_v-XDRNcJMoK46hGEg2ZAEZ_7BJm6Vbx6vY7L2UlkZZ'
 form2 = '1e8dcuI-Z1jk8mapxdnSsRfkMdEI3KonJBKlyqNCYfZZ'
+
 
 def readconfig():
     try:
@@ -36,7 +38,7 @@ def readconfig():
         print 'please configure config.json'
         quit()
 
-def calcKWHr():
+def calcKWHr(sumI):
         dt = (datetime.datetime.now() - startChargeTime).total_seconds()/(60.0*60.0)
         kwHr = 0
         if len(sumI) > 0:
@@ -72,7 +74,7 @@ def processCurrent(ser):
                 update = 60 * 60 /2
 
                 if(len(sumI) > 1):  #must be end of charge, send summary information
-                    totalKwHr = calcKWHr()
+                    totalKwHr = calcKWHr(sumI)
                     print 'total charge was ' + str(totalKwHr)
                     r = requests.get('http://docs.google.com/forms/d/'+form1+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
                 sumI = []
@@ -108,7 +110,7 @@ def processCurrent(ser):
             if count % update == 0 or abs(I - prevI) > .5: #update google sheet every time there is a change in curren tby more than .5 amp
                 count = 0
 
-                kwHr = calcKWHr()
+                kwHr = calcKWHr(sumI)
                 print 'update spreadsheet ' + str(I) + ' - ' + str(kwHr)
                 r = requests.get('http://docs.google.com/forms/d/'+form2+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit')
                 #print r.text
