@@ -6,6 +6,10 @@ System to monitor electricity usage for electric vehicle
 * [Instructions](https://www.raspberrypi.org/documentation/installation/installing-images/windows.md)
 * I use 2015-02-16-raspbian-wheezy.img 
 * [Setting up Google Drive](http://www.open-electronics.org/how-send-data-from-arduino-to-google-docs-spreadsheet/)
+```
+sudo apt-get update
+sudo apt-get dist-upgrade
+```
 
 ### Installing aruino support software
 ```
