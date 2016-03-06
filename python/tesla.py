@@ -6,6 +6,7 @@ import traceback
 import requests
 import smtplib
 import json
+import thread
 
 count = 0
 update = 10
@@ -33,12 +34,19 @@ def readconfig():
         print 'please configure config.json'
         quit()
 
-def main():
+def calcKWHr():
+        dt = (datetime.datetime.now() - startChargeTime).total_seconds()/(60.0*60.0)
+        kwHr = 0
+        if len(sumI) > 0:
+            kwHr = (sum(sumI)/float(len(sumI))) * .240 * dt
+
+        return kwHr
+
+def processCurrent(ser):
     global count
     global update
     global prevI
     configuration = readconfig()
-    ser = serial.Serial('/dev/ttyACM0') #connection to arduino
     startChargeTime = datetime.datetime.now()
     endChargeTIme = datetime.datetime.now()
     lastNagTime = datetime.datetime.min
@@ -46,14 +54,6 @@ def main():
     secondNag = datetime.timedelta(hours =72)
 
     sumI = []
-
-    def calcKWHr():
-        dt = (datetime.datetime.now() - startChargeTime).total_seconds()/(60.0*60.0)
-        kwHr = 0
-        if len(sumI) > 0:
-            kwHr = (sum(sumI)/float(len(sumI))) * .240 * dt
-
-        return kwHr
 
     while True:
         try:
@@ -68,14 +68,14 @@ def main():
                 update = newupdate
             else:   #update google sheet once every hour
                 update = 60 * 60 /2
-                
+
                 if(len(sumI) > 1):  #must be end of charge, send summary information
                     totalKwHr = calcKWHr()
                     print 'total charge was ' + str(totalKwHr)
                     r = requests.get('http://docs.google.com/forms/d/'+form1+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
                 sumI = []
                 startChargeTime = datetime.datetime.now()
-                
+
             if I > 3:
                 sumI.append(I)
                 endChargeTIme = datetime.datetime.now()
@@ -105,7 +105,7 @@ def main():
             print str(count) + '-' + str(update) + ' '  + str(I)
             if count % update == 0 or abs(I - prevI) > .5: #update google sheet every time there is a change in curren tby more than .5 amp
                 count = 0
-                
+
                 kwHr = calcKWHr()
                 print 'update spreadsheet ' + str(I) + ' - ' + str(kwHr)
                 r = requests.get('http://docs.google.com/forms/d/'+form2+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit')
@@ -113,6 +113,34 @@ def main():
             prevI = I
         except Exception, e:
             traceback.print_exc()
+
+def processProximity(ser):
+    pass
+
+def main():
+    #make sure we have the correct device
+
+    keepTrying = True
+    while keepTrying:
+        serial0 = serial.Serial('/dev/ttyACM0') #connection to arduino1
+        serial1 = serial.Serial('/dev/ttyACM1') #connection to arduino2
+        countCurrent = 0
+        countCurrentFail = 0;
+        try:
+            line = ser.readline() #read ardiono about once every two seconds
+            I  = float(line.split(' ')[1].strip())  #get the current reading
+            countCurrent += 1
+        except Exception, e:
+            countCurrentFail =+1
+
+        if countCurrent > countCurrentFail + 5: #5 good readings
+            keepTrying = False
+            thread.start_new_thread( processCurrent, (serial0) )
+            thread.start_new_thread( processProximity, (serial1) )
+        elif countCurrentFail > countCurrent +5:  #5 bad readings, do a swap
+            keepTrying = False
+            thread.start_new_thread( processCurrent, (serial1) )
+            thread.start_new_thread( processProximity, (serial0) )
 
 if __name__ == "__main__":
     main()
