@@ -7,6 +7,8 @@ import requests
 import smtplib
 import json
 import thread
+import os
+import sys
 
 count = 0
 update = 10
@@ -118,29 +120,43 @@ def processProximity(ser):
     pass
 
 def main():
+    if len(sys.argv) > 1:
+        print "cmd arg to set directory to: " + sys.argv[1]
+        os.chdir(sys.argv[1])
+
+    print 'cwd is: ' + os.getcwd()
+        
     #make sure we have the correct device
 
     keepTrying = True
+    countCurrent = 0
+    countCurrentFail = 0;
+
     while keepTrying:
         serial0 = serial.Serial('/dev/ttyACM0') #connection to arduino1
         serial1 = serial.Serial('/dev/ttyACM1') #connection to arduino2
-        countCurrent = 0
-        countCurrentFail = 0;
+        
         try:
             line = ser.readline() #read ardiono about once every two seconds
             I  = float(line.split(' ')[1].strip())  #get the current reading
             countCurrent += 1
         except Exception, e:
-            countCurrentFail =+1
+            countCurrentFail +=1
 
         if countCurrent > countCurrentFail + 5: #5 good readings
             keepTrying = False
-            thread.start_new_thread( processCurrent, (serial0) )
-            thread.start_new_thread( processProximity, (serial1) )
+            thread.start_new_thread( processCurrent, (serial0,) )
+            thread.start_new_thread( processProximity, (serial1,) )
         elif countCurrentFail > countCurrent +5:  #5 bad readings, do a swap
             keepTrying = False
-            thread.start_new_thread( processCurrent, (serial1) )
-            thread.start_new_thread( processProximity, (serial0) )
+            thread.start_new_thread( processCurrent, (serial1,) )
+            thread.start_new_thread( processProximity, (serial0,) )
+
+        print ' . ' + str(countCurrent) + '-' + str(countCurrentFail)
+        
+    while True:
+        time.sleep(5)
+        pass
 
 if __name__ == "__main__":
     main()
