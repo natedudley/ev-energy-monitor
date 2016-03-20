@@ -14,6 +14,7 @@ from multiprocessing import Process, Manager
 count = 0
 update = 10
 prevI = 0;
+parkedDistInches = 45;
 fmt = "%Y-%m-%d %H:%M:%S %Z%z"
 startChargeTime = datetime.datetime.now()
 
@@ -129,7 +130,16 @@ def processProximity(ser, sharedDict):
     while keepLooping:
         try:
             line = ser.readline() #read ardiono
-            print 'proximity -- ' + line
+            prox = parkedDistInches + 100
+            try:
+                prox = float(line.split(' ')[1].strip().replace('in,', ''))
+            except Exception, e:
+                print 'bad proximity -- ' + line
+
+            print 'prox inches is ' + prox
+
+            if prox < parkedDistInches:
+                print 'parking'
         except Exception, e:
             keepLooping = False
 
