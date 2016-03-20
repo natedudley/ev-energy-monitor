@@ -125,6 +125,27 @@ def processCurrent(ser, sharedDict):
         except Exception, e:
             traceback.print_exc()
 
+def sendTxt():
+    server = smtplib.SMTP('smtp.gmail.com:587')
+    server.starttls()
+    server.login(srcEmailAddr,srcEmailPwd)
+    FROM = 'Tessa'
+    TO = ['Da'] # must be a list
+    SUBJECT = ""
+    TEXT = 'last chrg: ' + endChargeTIme.strftime(fmt)
+    # Prepare actual message
+
+    message = """From: %s To: %s
+Subject: Time to Charge!%s
+
+%s
+    """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
+
+    print message
+
+    server.sendmail(srcEmailAddr, dstEmailAddr, message)#'From: Tessa last chrg: ' + endChargeTIme.strftime(fmt))
+    server.quit()
+
 def processProximity(ser, sharedDict):
     keepLooping = True
     parkCount = 0
@@ -156,6 +177,7 @@ def processProximity(ser, sharedDict):
 
                     if(sharedDict['isParked'] and not sharedDict['wasParked']):
                         print 'need to send a reminder'
+                        sendTxt()
 
                     sharedDict['wasParked'] = True
 
