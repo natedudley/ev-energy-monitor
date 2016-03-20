@@ -127,6 +127,15 @@ def processCurrent(ser, sharedDict):
 
 def processProximity(ser, sharedDict):
     keepLooping = True
+    parkCount = 0
+
+    if 'wasParked' not in sharedDict:
+        print 'wasParked not is shared Dict'
+        sharedDict['wasParked'] = False
+    if 'isParked' not in sharedDict:
+        print 'isParked not is shared Dict'
+        sharedDict['isParked'] = False
+
     while keepLooping:
         try:
             line = ser.readline() #read ardiono
@@ -140,7 +149,28 @@ def processProximity(ser, sharedDict):
             print 'proximity inches is ' + str(prox)
 
             if prox < parkedDistInches:
-                print 'parking'
+
+
+                if parkCount > 10:
+                    sharedDict['isParked'] = True
+
+                    if(sharedDict['isParked'] and not sharedDict['wasParked']):
+                        print 'need to send a reminder'
+
+                    sharedDict['wasParked'] = True
+
+                parkCount += 1
+                if parkCount > 300:
+                    pakrCount = 300
+
+                print 'parking ' + parkCount
+            else:
+                parkCount -= 1
+                if parkCount < 0:
+                    parkCount = 0
+                    sharedDict['wasParked'] = False
+                    sharedDict['isParked'] = False
+
                                                
         except Exception, e:
             keepLooping = False
