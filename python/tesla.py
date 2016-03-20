@@ -146,7 +146,7 @@ def processProximity(ser, sharedDict):
             except Exception, e:
                 pass
 
-            print 'proximity inches is ' + str(prox)
+            print 'proximity inches is ' + str(prox) + ' count is ' + str(parkCount)
 
             if prox < parkedDistInches:
 
@@ -163,7 +163,7 @@ def processProximity(ser, sharedDict):
                 if parkCount > 300:
                     pakrCount = 300
 
-                print 'parking ' + parkCount
+                print 'parking ' + str(parkCount)
             else:
                 parkCount -= 1
                 if parkCount < 0:
