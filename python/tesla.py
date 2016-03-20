@@ -9,6 +9,7 @@ import json
 import thread
 import os
 import sys
+from multiprocessing import Process, Manager
 
 count = 0
 update = 10
@@ -46,7 +47,7 @@ def calcKWHr(sumI):
 
         return kwHr
 
-def processCurrent(ser):
+def processCurrent(ser, sharedDict):
     global count
     global update
     global prevI
@@ -79,6 +80,11 @@ def processCurrent(ser):
                     r = requests.get('http://docs.google.com/forms/d/'+form1+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
                 sumI = []
                 startChargeTime = datetime.datetime.now()
+
+            #detect that car is plugged in and assume parked
+            if I > 1:
+                sharedDict['wasParked'] = True
+                sharedDict['isParked'] = True
 
             if I > 3:
                 sumI.append(I)
@@ -118,8 +124,13 @@ def processCurrent(ser):
         except Exception, e:
             traceback.print_exc()
 
-def processProximity(ser):
-    pass
+def processProximity(ser, sharedDict):
+    try:
+        line = ser.readline() #read ardiono
+        print 'proximity -- ' + line
+    except Exception, e:
+        pass
+
 
 def main():
     if len(sys.argv) > 1:
@@ -134,6 +145,9 @@ def main():
     countCurrent = 0
     countCurrentFail = 0;
 
+    manager = Manager()
+    sharedDictionay = manager.dict()
+
     while keepTrying:
         serial0 = serial.Serial('/dev/ttyACM0') #connection to arduino1
         serial1 = serial.Serial('/dev/ttyACM1') #connection to arduino2
@@ -147,18 +161,24 @@ def main():
 
         if countCurrent > countCurrentFail + 5: #5 good readings
             keepTrying = False
-            thread.start_new_thread( processCurrent, (serial0,) )
-            thread.start_new_thread( processProximity, (serial1,) )
+            p1 = Process(target=processCurrent, args=(serial0,sharedDictionay,))
+            p2 = Process(target=processProximity, args=(serial1,sharedDictionay,))
+            p1.start()
+            p2.start()
+            p1.join()
+            p2.join()
         elif countCurrentFail > countCurrent +5:  #5 bad readings, do a swap
             keepTrying = False
-            thread.start_new_thread( processCurrent, (serial1,) )
-            thread.start_new_thread( processProximity, (serial0,) )
+            p1 = Process(target=processCurrent, args=(serial1,sharedDictionay,))
+            p2 = Process(target=processProximity, args=(serial0,sharedDictionay,))
+            p1.start()
+            p2.start()
+            p1.join()
+            p2.join()
 
         print ' . ' + str(countCurrent) + '-' + str(countCurrentFail)
         
-    while True:
-        time.sleep(5)
-        pass
+
 
 if __name__ == "__main__":
     main()
