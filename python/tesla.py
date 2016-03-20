@@ -132,16 +132,19 @@ def processProximity(ser, sharedDict):
             line = ser.readline() #read ardiono
             prox = parkedDistInches + 100
             try:
-                prox = float(line.split(' ')[1].strip().replace('in,', ''))
+                proxStr = line.split(' ')[1].replace('in,', '').strip()
+                prox = int(proxStr)
             except Exception, e:
-                print 'bad proximity -- ' + line
+                pass
 
-            print 'prox inches is ' + prox
+            print 'proximity inches is ' + str(prox)
 
             if prox < parkedDistInches:
                 print 'parking'
+                                               
         except Exception, e:
             keepLooping = False
+            print e
 
 
 def main():
