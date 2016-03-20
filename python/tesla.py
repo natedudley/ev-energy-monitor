@@ -127,7 +127,9 @@ def processCurrent(ser, sharedDict):
 
 def sendTxt():
     server = smtplib.SMTP('smtp.gmail.com:587')
+    server.ehlo()
     server.starttls()
+    print srcEmailAddr + '   ' +srcEmailPwd
     server.login(srcEmailAddr,srcEmailPwd)
     FROM = 'Tessa'
     TO = ['Da'] # must be a list
