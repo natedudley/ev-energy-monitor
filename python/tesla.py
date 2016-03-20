@@ -125,11 +125,13 @@ def processCurrent(ser, sharedDict):
             traceback.print_exc()
 
 def processProximity(ser, sharedDict):
-    try:
-        line = ser.readline() #read ardiono
-        print 'proximity -- ' + line
-    except Exception, e:
-        pass
+    keepLooping = True
+    while keepLooping:
+        try:
+            line = ser.readline() #read ardiono
+            print 'proximity -- ' + line
+        except Exception, e:
+            keepLooping = False
 
 
 def main():
