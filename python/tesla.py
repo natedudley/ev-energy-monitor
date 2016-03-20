@@ -123,8 +123,10 @@ def processCurrent(ser, sharedDict, configuration):
 
 def sendTxt(fromEmail, password, toEmail):
     server = smtplib.SMTP('smtp.gmail.com:587')
+    server.ehlo()
     server.starttls()
     server.login(fromEmail,password)
+    print srcEmailAddr + '   ' +srcEmailPwd
     FROM = 'Tessa'
     TO = ['Da'] # must be a list
     SUBJECT = ""
