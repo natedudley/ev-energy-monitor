@@ -122,27 +122,32 @@ def processCurrent(ser, sharedDict, configuration):
             traceback.print_exc()
 
 def sendTxt(fromEmail, password, toEmail):
-    server = smtplib.SMTP('smtp.gmail.com:587')
-    server.ehlo()
-    server.starttls()
-    server.login(fromEmail,password)
-    print srcEmailAddr + '   ' +srcEmailPwd
-    FROM = 'Tessa'
-    TO = ['Da'] # must be a list
-    SUBJECT = ""
-    TEXT = 'time to charge' #'last chrg: ' + endChargeTIme.strftime(fmt)
-    # Prepare actual message
+    try:
+        print fromEmail + '   ' +password
+        server = smtplib.SMTP('smtp.gmail.com:587')
+        server.ehlo()
+        server.starttls()
+        server.login(fromEmail,password)
+        
+        FROM = 'Tessa'
+        TO = ['Da'] # must be a list
+        SUBJECT = ""
+        TEXT = 'time to charge' #'last chrg: ' + endChargeTIme.strftime(fmt)
+        # Prepare actual message
 
-    message = """From: %s To: %s
-Subject: Time to Charge!%s
+        message = """From: %s To: %s
+    Subject: Time to Charge!%s
 
-%s
-    """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
+    %s
+        """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
 
-    print message
+        print message
 
-    server.sendmail(fromEmail, toEmail, message)#'From: Tessa last chrg: ' + endChargeTIme.strftime(fmt))
-    server.quit()
+        server.sendmail(fromEmail, toEmail, message)#'From: Tessa last chrg: ' + endChargeTIme.strftime(fmt))
+        server.quit()
+    except Exception, e:
+        print 'EXCEPTION IN SENDTXT'
+        print e
 
 def processProximity(ser, sharedDict, configuration):
     keepLooping = True
