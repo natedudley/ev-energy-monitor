@@ -18,8 +18,8 @@ parkedDistInches = 45;
 fmt = "%Y-%m-%d %H:%M:%S %Z%z"
 startChargeTime = datetime.datetime.now()
 
-#form1 = '1_v-XDRNcJMoK46hGEg2ZAEZ_7BJm6Vbx6vY7L2UlkZZ' #total
-#form2 = '1e8dcuI-Z1jk8mapxdnSsRfkMdEI3KonJBKlyqNCYfZZ' #realTime
+#form1 = '1_v-XDRNcJMoK46hGEg2ZAEZ_7BJm6Vbx6vY7L2UlkMA' #total
+#form2 = '1e8dcuI-Z1jk8mapxdnSsRfkMdEI3KonJBKlyqNCYfZE' #realTime
 
 
 def readconfig():
@@ -140,7 +140,9 @@ def processCurrent(ser, sharedDict, configuration):
 
                 kwHr = calcKWHr(sumI)
                 print 'update spreadsheet ' + str(I) + ' - ' + str(kwHr)
-                r = requests.get('http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit')
+                newUpdate = 'http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit'
+                print newUpdate
+                r = requests.get(newUpdate)
                 #print r.text
             prevI = I
         except Exception, e:
