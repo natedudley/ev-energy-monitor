@@ -186,7 +186,7 @@ def processProximity(ser, sharedDict, configuration):
 
                 parkCount += 1
                 if parkCount > 300:
-                    pakrCount = 300
+                    parkCount = 300
 
                 print 'parking ' + str(parkCount)
             else:
