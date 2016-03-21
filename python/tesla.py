@@ -200,21 +200,19 @@ def processProximity(ser, sharedDict, configuration):
             if prox < parkedDistInches:
 
 
-                if parkCount > 10:
+                if parkCount > 120:
                     sharedDict['isParked'] = True
 
                     if(sharedDict['isParked'] and not sharedDict['wasParked']):
                         print 'need to send a reminder'
                         #sendTxt(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'])
-                        send_email(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'], 'Remember to charge', 'Tessa may not be plugged in!'):
+                        send_email(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'], 'Remember to charge', 'Tessa may not be plugged in!')
 
                     sharedDict['wasParked'] = True
 
                 parkCount += 1
                 if parkCount > 300:
                     parkCount = 300
-
-                print 'parking ' + str(parkCount)
             else:
                 parkCount -= 1
                 if parkCount < 0:
