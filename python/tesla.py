@@ -6,21 +6,11 @@ import traceback
 import requests
 import smtplib
 import json
-import thread
 import os
 import sys
 from multiprocessing import Process, Manager
 
-count = 0
-update = 10
-prevI = 0;
-parkedDistInches = 45;
-fmt = "%Y-%m-%d %H:%M:%S %Z%z"
-startChargeTime = datetime.datetime.now()
-
-#form1 = '1_v-XDRNcJMoK46hGEg2ZAEZ_7BJm6Vbx6vY7L2UlkMA' #total
-#form2 = '1e8dcuI-Z1jk8mapxdnSsRfkMdEI3KonJBKlyqNCYfZE' #realTime
-
+parkedDistInches = 45
 
 def readconfig():
     try:
@@ -37,7 +27,7 @@ def readconfig():
         print 'please configure config.json'
         quit()
 
-def send_email(user, pwd, recipient, subject, body):
+def sendEmail(user, pwd, recipient, subject, body):
     gmail_user = user
     gmail_pwd = pwd
     FROM = user
@@ -62,23 +52,21 @@ def send_email(user, pwd, recipient, subject, body):
         print "failed to send mail"
         print e
 
-def calcKWHr(sumI):
-        dt = (datetime.datetime.now() - startChargeTime).total_seconds()/(60.0*60.0)
-        kwHr = 0
-        if len(sumI) > 0:
-            kwHr = (sum(sumI)/float(len(sumI))) * .240 * dt
+def calcKWHr(sumI, startChargeTime):
+    dt = (datetime.datetime.now() - startChargeTime).total_seconds()/(60.0*60.0)
+    kwHr = 0
+    if len(sumI) > 0:
+        kwHr = (sum(sumI)/float(len(sumI))) * .240 * dt
 
-        return kwHr
+    return kwHr
 
 def processCurrent(ser, sharedDict, configuration):
-    global count
-    global update
-    global prevI
+    count = 0
+    update = 10
+    prevI = 0
     startChargeTime = datetime.datetime.now()
-    endChargeTIme = datetime.datetime.now()
-    lastNagTime = datetime.datetime.min
-    firstNag = datetime.timedelta(hours = 24)
-    secondNag = datetime.timedelta(hours =72)
+    endChargeTime = datetime.datetime.now()
+    fmt = "%Y-%m-%d %H:%M:%S %Z%z"
 
     sumI = []
 
@@ -87,6 +75,7 @@ def processCurrent(ser, sharedDict, configuration):
             count += 1
             line = ser.readline() #read ardiono about once every two seconds
             I  = float(line.split(' ')[1].strip())  #get the current reading
+            sharedDict['I'] = I
             #currents bellow 1 amp are not accurate
             if I > 1:
                 newupdate = 2 * 60 /2  #update google sheet once every two minutes
@@ -97,7 +86,7 @@ def processCurrent(ser, sharedDict, configuration):
                 update = 60 * 60 /2
 
                 if(len(sumI) > 1):  #must be end of charge, send summary information
-                    totalKwHr = calcKWHr(sumI)
+                    totalKwHr = calcKWHr(sumI, startChargeTime)
                     print 'total charge was ' + str(totalKwHr)
                     r = requests.get('http://docs.google.com/forms/d/'+configuration['googleFormTotalKW']+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
                 sumI = []
@@ -110,71 +99,19 @@ def processCurrent(ser, sharedDict, configuration):
 
             if I > 3:
                 sumI.append(I)
-                endChargeTIme = datetime.datetime.now()
-                lastNagTime = datetime.datetime.now()
-            elif datetime.datetime.now() - endChargeTIme > firstNag and datetime.datetime.now() - lastNagTime > secondNag:
-                lastNagTime = datetime.datetime.now()
-                print 'send reminder'
-                server = smtplib.SMTP('smtp.gmail.com:587')
-                server.starttls()
-                server.login(configuration['emailFromAddr'],configuration['emailFromPassword'])
-                FROM = 'Tessa'
-                TO = ['Da'] # must be a list
-                SUBJECT = ""
-                TEXT = 'last chrg: ' + endChargeTIme.strftime(fmt)
-                # Prepare actual message
+                endChargeTime = datetime.datetime.now()
 
-                message = """From: %s To: %s
-    Subject: Time to Charge!%s
-
-    %s
-                """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
-
-                print message
-
-                server.sendmail(configuration['emailFromAddr'], configuration['emailToAddr'], message)#'From: Tessa last chrg: ' + endChargeTIme.strftime(fmt))
-                server.quit()
-            print str(count) + '-' + str(update) + ' '  + str(I)
             if count % update == 0 or abs(I - prevI) > .5: #update google sheet every time there is a change in curren tby more than .5 amp
                 count = 0
-
                 kwHr = calcKWHr(sumI)
                 print 'update spreadsheet ' + str(I) + ' - ' + str(kwHr)
                 newUpdate = 'http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit'
                 print newUpdate
                 r = requests.get(newUpdate)
-                #print r.text
+
             prevI = I
         except Exception, e:
             traceback.print_exc()
-
-def sendTxt(fromEmail, password, toEmail):
-    try:
-        print fromEmail + '   ' +password
-        server = smtplib.SMTP('smtp.gmail.com:587')
-        server.ehlo()
-        server.starttls()
-        server.login(fromEmail,password)
-        
-        FROM = 'Tessa'
-        TO = ['Da'] # must be a list
-        SUBJECT = ""
-        TEXT = 'time to charge' #'last chrg: ' + endChargeTIme.strftime(fmt)
-        # Prepare actual message
-
-        message = """From: %s To: %s
-    Subject: Time to Charge!%s
-
-    %s
-        """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
-
-        print message
-
-        server.sendmail(fromEmail, toEmail, message)#'From: Tessa last chrg: ' + endChargeTIme.strftime(fmt))
-        server.quit()
-    except Exception, e:
-        print 'EXCEPTION IN SENDTXT'
-        print e
 
 def processProximity(ser, sharedDict, configuration):
     keepLooping = True
@@ -197,7 +134,8 @@ def processProximity(ser, sharedDict, configuration):
             except Exception, e:
                 pass
 
-            print 'proximity inches is ' + str(prox) + ' count is ' + str(parkCount)
+            sharedDict['prox'] = prox
+            sharedDict['parkCount'] = parkCount
 
             if prox < parkedDistInches:
 
@@ -207,8 +145,7 @@ def processProximity(ser, sharedDict, configuration):
 
                     if(sharedDict['isParked'] and not sharedDict['wasParked']):
                         print 'need to send a reminder'
-                        #sendTxt(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'])
-                        send_email(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'], 'Remember to charge', 'Tessa may not be plugged in!')
+                        sendEmail(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'], 'Remember to charge', 'Tessa may not be plugged in!')
 
                     sharedDict['wasParked'] = True
 
@@ -227,6 +164,17 @@ def processProximity(ser, sharedDict, configuration):
             keepLooping = False
             print e
 
+def processOutput(sharedDict):
+    while True:
+        msg = ''
+        if 'prox' in sharedDict:
+            msg = msg + str(sharedDict['prox']) + '\" '
+        if 'parkedCount' in sharedDict:
+            msg = msg + 'parked ' + str(sharedDict['parkedCount'] + ' ')
+        if 'I' in sharedDict:
+            msg = msg + 'I ' + str(sharedDict['I'] + ' ')
+        print msg
+        time.sleep(10)
 
 def main():
     if len(sys.argv) > 1:
@@ -263,16 +211,14 @@ def main():
             p2 = Process(target=processProximity, args=(serial1,sharedDictionay,configuration,))
             p1.start()
             p2.start()
-            p1.join()
-            p2.join()
+            processOutput(sharedDictionay)
         elif countCurrentFail > countCurrent +5:  #5 bad readings, do a swap
             keepTrying = False
             p1 = Process(target=processCurrent, args=(serial1,sharedDictionay,configuration,))
             p2 = Process(target=processProximity, args=(serial0,sharedDictionay,configuration,))
             p1.start()
             p2.start()
-            p1.join()
-            p2.join()
+            processOutput(sharedDictionay)
 
         print ' . ' + str(countCurrent) + '-' + str(countCurrentFail)
         
