@@ -103,7 +103,7 @@ def processCurrent(ser, sharedDict, configuration):
 
             if count % update == 0 or abs(I - prevI) > .5: #update google sheet every time there is a change in curren tby more than .5 amp
                 count = 0
-                kwHr = calcKWHr(sumI)
+                kwHr = calcKWHr(sumI, startChargeTime)
                 print 'update spreadsheet ' + str(I) + ' - ' + str(kwHr)
                 newUpdate = 'http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit'
                 print newUpdate
@@ -167,14 +167,18 @@ def processProximity(ser, sharedDict, configuration):
 def processOutput(sharedDict):
     while True:
         msg = ''
-        if 'prox' in sharedDict:
-            msg = msg + str(sharedDict['prox']) + '\" '
-        if 'parkedCount' in sharedDict:
-            msg = msg + 'parked ' + str(sharedDict['parkedCount'] + ' ')
-        if 'I' in sharedDict:
-            msg = msg + 'I ' + str(sharedDict['I'] + ' ')
+        try:
+            if 'prox' in sharedDict:
+                msg = msg + str(sharedDict['prox']) + '\" '
+            if 'parkCount' in sharedDict:
+                msg = msg + 'parkCnt ' + str(sharedDict['parkCount']) + ' '
+            if 'I' in sharedDict:
+                msg = msg + 'I ' + str(sharedDict['I'] )+ ' '
+        except Exception, e:
+            print e
+            
         print msg
-        time.sleep(10)
+        time.sleep(1)
 
 def main():
     if len(sys.argv) > 1:
