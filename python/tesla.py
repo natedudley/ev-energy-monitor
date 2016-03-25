@@ -10,6 +10,9 @@ import os
 import sys
 from multiprocessing import Process, Manager
 
+import requests.packages.urllib3
+requests.packages.urllib3.disable_warnings()
+
 parkedDistInches = 45
 
 def readconfig():
