@@ -181,7 +181,7 @@ def processOutput(sharedDict):
             print e
             
         print msg
-        time.sleep(1)
+        time.sleep(5)
 
 def main():
     if len(sys.argv) > 1:
