@@ -65,7 +65,7 @@ def calcKWHr(sumI, startChargeTime):
 
 def logTotalKwHr(kwHr):
     with open("log.csv", "a") as myfile:
-        myfile.write(str(datetime.datetime.now()) + ', ' + str(kwHr))
+        myfile.write(str(datetime.datetime.now()) + ', ' + str(kwHr) + '\n')
 
 def processCurrent(ser, sharedDict, configuration):
     count = 0
