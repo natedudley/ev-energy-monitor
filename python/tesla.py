@@ -63,6 +63,10 @@ def calcKWHr(sumI, startChargeTime):
 
     return kwHr
 
+def logTotalKwHr(kwHr):
+    with open("log.csv", "a") as myfile:
+        myfile.write(str(datetime.datetime.now()) + ', ' + str(kwHr))
+
 def processCurrent(ser, sharedDict, configuration):
     count = 0
     update = 10
@@ -94,6 +98,8 @@ def processCurrent(ser, sharedDict, configuration):
                     r = requests.get('http://docs.google.com/forms/d/'+configuration['googleFormTotalKW']+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
                 sumI = []
                 startChargeTime = datetime.datetime.now()
+
+                logTotalKwHr(totalKwHr)
 
             #detect that car is plugged in and assume parked
             if I > 1:
