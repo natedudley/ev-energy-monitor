@@ -96,10 +96,12 @@ def processCurrent(ser, sharedDict, configuration):
                     totalKwHr = calcKWHr(sumI, startChargeTime)
                     print 'total charge was ' + str(totalKwHr)
                     r = requests.get('http://docs.google.com/forms/d/'+configuration['googleFormTotalKW']+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
+                    logTotalKwHr(totalKwHr)
+                    
                 sumI = []
                 startChargeTime = datetime.datetime.now()
 
-                logTotalKwHr(totalKwHr)
+                
 
             #detect that car is plugged in and assume parked
             if I > 1:
