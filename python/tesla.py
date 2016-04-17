@@ -15,6 +15,7 @@ requests.packages.urllib3.disable_warnings()
 
 parkedDistInches = 45
 
+#application depends on json file to configure gmail sender and google drive location for posting data
 def readconfig():
     try:
         f = open('config.json', 'r')
@@ -30,6 +31,7 @@ def readconfig():
         print 'please configure config.json'
         quit()
 
+#sends reminder email via gmail
 def sendEmail(user, pwd, recipient, subject, body):
     gmail_user = user
     gmail_pwd = pwd
@@ -55,6 +57,7 @@ def sendEmail(user, pwd, recipient, subject, body):
         print "failed to send mail"
         print e
 
+#uses the sample readings and total charge time to calculate KwHr
 def calcKWHr(sumI, startChargeTime):
     dt = (datetime.datetime.now() - startChargeTime).total_seconds()/(60.0*60.0)
     kwHr = 0
@@ -63,10 +66,12 @@ def calcKWHr(sumI, startChargeTime):
 
     return kwHr
 
+#file logger as backup incase internet is down
 def logTotalKwHr(kwHr):
     with open("log.csv", "a") as myfile:
         myfile.write(str(datetime.datetime.now()) + ', ' + str(kwHr) + '\n')
 
+#run as a thread to read the current sensing arduino via serial port
 def processCurrent(ser, sharedDict, configuration):
     count = 0
     update = 10
@@ -124,6 +129,7 @@ def processCurrent(ser, sharedDict, configuration):
         except Exception, e:
             traceback.print_exc()
 
+#run as a thread to read the proximity sensing arduino via serial port
 def processProximity(ser, sharedDict, configuration):
     keepLooping = True
     parkCount = 0
@@ -175,6 +181,7 @@ def processProximity(ser, sharedDict, configuration):
             keepLooping = False
             print e
 
+#console print out of status
 def processOutput(sharedDict):
     while True:
         msg = ''
@@ -185,11 +192,39 @@ def processOutput(sharedDict):
                 msg = msg + 'parkCnt ' + str(sharedDict['parkCount']) + ' '
             if 'I' in sharedDict:
                 msg = msg + 'I ' + str(sharedDict['I'] )+ ' '
+            if 'inetStatus' in sharedDict:
+                msg = msg + 'inet' + str(sharedDict['inetStatus']) + ' '
         except Exception, e:
             print e
             
         print msg
         time.sleep(5)
+
+#test if internet is working
+#todo if internet is down, true to bring it back up
+def testInternet(sharedDict, url='http://www.google.com/', timeout=5):
+    while True:
+        try:
+            _ = requests.get(url, timeout=timeout)
+            sharedDict['inetStatus'] = 'up'
+        except requests.ConnectionError:
+            print("No internet connection available.")
+            sharedDict['inetStatus'] = 'down'
+        time.sleep(600)
+
+#kick off the threads
+def startThreading(sharedDictionary, iSerial, proxSerial):
+    configuration = readconfig()
+    pCurrent = Process(target=processCurrent, args=(iSerial,sharedDictionary,configuration,))
+    pProx = Process(target=processProximity, args=(proxSerial,sharedDictionary,configuration,))
+    pInet = Process(target=testInternet, args=(sharedDictionary,))
+    pCurrent.start()
+    pProx.start()
+    pInet.start()
+
+    #don't do the last one as a thread to keep the python app up
+    processOutput(sharedDictionary)
+
 
 def main():
     if len(sys.argv) > 1:
@@ -205,9 +240,7 @@ def main():
     countCurrentFail = 0;
 
     manager = Manager()
-    sharedDictionay = manager.dict()
-
-    configuration = readconfig()
+    sharedDictionary = manager.dict()
 
     while keepTrying:
         serial0 = serial.Serial('/dev/ttyACM0') #connection to arduino1
@@ -222,22 +255,12 @@ def main():
 
         if countCurrent > countCurrentFail + 5: #5 good readings
             keepTrying = False
-            p1 = Process(target=processCurrent, args=(serial0,sharedDictionay,configuration,))
-            p2 = Process(target=processProximity, args=(serial1,sharedDictionay,configuration,))
-            p1.start()
-            p2.start()
-            processOutput(sharedDictionay)
+            startThreading(sharedDictionary, serial0, serial1)
         elif countCurrentFail > countCurrent +5:  #5 bad readings, do a swap
             keepTrying = False
-            p1 = Process(target=processCurrent, args=(serial1,sharedDictionay,configuration,))
-            p2 = Process(target=processProximity, args=(serial0,sharedDictionay,configuration,))
-            p1.start()
-            p2.start()
-            processOutput(sharedDictionay)
+            startThreading(sharedDictionary, serial1, serial0)
 
         print ' . ' + str(countCurrent) + '-' + str(countCurrentFail)
-        
-
 
 if __name__ == "__main__":
     main()
