@@ -12,7 +12,7 @@ void setup()
 void loop()
 {
   double Irms = emon1.calcIrms(1480);  // Calculate Irms only
-  
+  Irms = Irms / 1.8;
   Serial.print(Irms*230.0);         // Apparent power
   Serial.print(" ");
   Serial.println(Irms);          // Irms
