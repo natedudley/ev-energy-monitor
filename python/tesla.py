@@ -2,7 +2,6 @@
 import time
 import datetime
 import serial
-import traceback
 import requests
 import smtplib
 import json
@@ -28,7 +27,7 @@ def readconfig():
              'googleFormTotalKW': 'asdfasdfasdfasdf',
              'googleFormRealTimeKW': 'asdfasdfasdfasdf'}
         json.dump(configuration, open("config.json",'w'), sort_keys=True, indent=4,)
-        print 'please configure config.json'
+        print('please configure config.json')
         quit()
 
 #sends reminder email via gmail
@@ -52,10 +51,10 @@ def sendEmail(user, pwd, recipient, subject, body):
         server_ssl.sendmail(FROM, TO, message)
         #server_ssl.quit()
         server_ssl.close()
-        print 'successfully sent the mail zz'
-    except Exception, e:
-        print "failed to send mail"
-        print e
+        print ('successfully sent the mail zz')
+    except Exception as e:
+        print ("failed to send mail")
+        print (e)
 
 #uses the sample readings and total charge time to calculate KwHr
 def calcKWHr(sumI, startChargeTime):
@@ -85,7 +84,7 @@ def processCurrent(ser, sharedDict, configuration):
     while True:
         try:
             count += 1
-            line = ser.readline() #read ardiono about once every two seconds
+            line = ser.readline().decode("utf-8") #read ardiono about once every two seconds
             I  = float(line.split(' ')[1].strip())  #get the current reading
             sharedDict['I'] = I
             #currents bellow 1 amp are not accurate
@@ -99,7 +98,7 @@ def processCurrent(ser, sharedDict, configuration):
 
                 if(len(sumI) > 1):  #must be end of charge, send summary information
                     totalKwHr = calcKWHr(sumI, startChargeTime)
-                    print 'total charge was ' + str(totalKwHr)
+                    print ('total charge was ' + str(totalKwHr))
                     r = requests.get('http://docs.google.com/forms/d/'+configuration['googleFormTotalKW']+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
                     logTotalKwHr(totalKwHr)
                     
@@ -120,14 +119,14 @@ def processCurrent(ser, sharedDict, configuration):
             if count % update == 0 or abs(I - prevI) > .5: #update google sheet every time there is a change in curren tby more than .5 amp
                 count = 0
                 kwHr = calcKWHr(sumI, startChargeTime)
-                print 'update spreadsheet ' + str(I) + ' - ' + str(kwHr)
+                print ('update spreadsheet ' + str(I) + ' - ' + str(kwHr))
                 newUpdate = 'http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit'
-                print newUpdate
+                print (newUpdate)
                 r = requests.get(newUpdate)
 
             prevI = I
-        except Exception, e:
-            traceback.print_exc()
+        except Exception as e:
+            print(e)
 
 #run as a thread to read the proximity sensing arduino via serial port
 def processProximity(ser, sharedDict, configuration):
@@ -135,20 +134,20 @@ def processProximity(ser, sharedDict, configuration):
     parkCount = 0
 
     if 'wasParked' not in sharedDict:
-        print 'wasParked not is shared Dict'
-        sharedDict['wasParked'] = False
+        print ('wasParked not in shared Dict')
+        sharedDict['wasParked'] = True
     if 'isParked' not in sharedDict:
-        print 'isParked not is shared Dict'
+        print ('isParked not in shared Dict')
         sharedDict['isParked'] = False
 
     while keepLooping:
         try:
-            line = ser.readline() #read ardiono
+            line = ser.readline().decode("utf-8") #read ardiono
             prox = parkedDistInches + 100
             try:
                 proxStr = line.split(' ')[1].replace('in,', '').strip()
                 prox = int(proxStr)
-            except Exception, e:
+            except Exception as e:
                 pass
 
             sharedDict['prox'] = prox
@@ -161,7 +160,7 @@ def processProximity(ser, sharedDict, configuration):
                     sharedDict['isParked'] = True
 
                     if(sharedDict['isParked'] and not sharedDict['wasParked']):
-                        print 'need to send a reminder'
+                        print ('need to send a reminder')
                         sendEmail(configuration['emailFromAddr'], configuration['emailFromPassword'], configuration['emailToAddr'], 'Remember to charge', 'Tessa may not be plugged in!')
 
                     sharedDict['wasParked'] = True
@@ -177,9 +176,9 @@ def processProximity(ser, sharedDict, configuration):
                     sharedDict['isParked'] = False
 
                                                
-        except Exception, e:
+        except Exception as e:
             keepLooping = False
-            print e
+            print (e)
 
 #console print out of status
 def processOutput(sharedDict):
@@ -194,10 +193,15 @@ def processOutput(sharedDict):
                 msg = msg + 'I ' + str(sharedDict['I'] )+ ' '
             if 'inetStatus' in sharedDict:
                 msg = msg + 'inet' + str(sharedDict['inetStatus']) + ' '
-        except Exception, e:
-            print e
+            if 'wasParked' in sharedDict:
+                msg = msg + 'wasParked: ' + str(sharedDict['wasParked']) + ' '
+            if 'isParked' in sharedDict:
+                msg = msg + 'isParked: ' + str(sharedDict['isParked']) + ' '
+
+        except Exception as e:
+            print (e)
             
-        print msg
+        print (msg)
         time.sleep(5)
 
 #test if internet is working
@@ -228,10 +232,10 @@ def startThreading(sharedDictionary, iSerial, proxSerial):
 
 def main():
     if len(sys.argv) > 1:
-        print "cmd arg to set directory to: " + sys.argv[1]
+        print ("cmd arg to set directory to: " + sys.argv[1])
         os.chdir(sys.argv[1])
 
-    print 'cwd is: ' + os.getcwd()
+    print ('cwd is: ' + os.getcwd())
         
     #make sure we have the correct device
 
@@ -246,21 +250,25 @@ def main():
         serial0 = serial.Serial('/dev/ttyACM0') #connection to arduino1
         serial1 = serial.Serial('/dev/ttyACM1') #connection to arduino2
         
+        line = serial1.readline().decode("utf-8") #read ardiono about once every two seconds
+        print('startup: ' + line)
+            
         try:
-            line = ser.readline() #read ardiono about once every two seconds
+            
             I  = float(line.split(' ')[1].strip())  #get the current reading
             countCurrent += 1
-        except Exception, e:
+            
+        except Exception as e:
             countCurrentFail +=1
 
         if countCurrent > countCurrentFail + 5: #5 good readings
             keepTrying = False
-            startThreading(sharedDictionary, serial0, serial1)
+            startThreading(sharedDictionary, serial1, serial0)
         elif countCurrentFail > countCurrent +5:  #5 bad readings, do a swap
             keepTrying = False
-            startThreading(sharedDictionary, serial1, serial0)
+            startThreading(sharedDictionary, serial0, serial1)
 
-        print ' . ' + str(countCurrent) + '-' + str(countCurrentFail)
+        print (' . ' + str(countCurrent) + '-' + str(countCurrentFail))
 
 if __name__ == "__main__":
     main()
