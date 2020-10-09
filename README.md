@@ -4,39 +4,24 @@ System to monitor electricity usage for electric vehicle
 # Raspberry Pi Setup
 ## Building a Raspberry Pi Image
 * [Instructions](https://www.raspberrypi.org/documentation/installation/installing-images/windows.md)
-* I use 2015-02-16-raspbian-wheezy.img 
+* I use 2020-08-20 version 10 buster
 * [Setting up Google Drive](http://www.open-electronics.org/how-send-data-from-arduino-to-google-docs-spreadsheet/)
 ```
-sudo apt-get update
-sudo apt-get dist-upgrade
+sudo apt update
+sudo apt dist-upgrade
 ```
 
 ### Installing aruino support software
 ```
-sudo apt-get update 
-sudo apt-get install arduino 
-```
-
-### Setting timezone 
-```
-sudo dpkg-reconfigure tzdata 
-```
-
-### Fixing keyboard special shift characters 
-```
-sudo nano /etc/default/keyboard XKBLAYOUT="us" 
-```
-
-### Installing pip 
-```
-sudo apt-get install python-setuptools 
-sudo easy_install pip 
+sudo apt update 
+sudo apt install arduino 
 ```
 
 ### Installing python supporting packages
 ```
 sudo su 
-pip install requests 
+pip install requests
+pip3 install requests 
 ```
 
 ### Auto starting python file
