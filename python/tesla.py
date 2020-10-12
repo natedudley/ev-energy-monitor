@@ -8,9 +8,12 @@ import json
 import os
 import sys
 from multiprocessing import Process, Manager
+from google.cloud import firestore
 
 import requests.packages.urllib3
 requests.packages.urllib3.disable_warnings()
+
+datastore_client = None
 
 parkedDistInches = 45
 
@@ -67,6 +70,24 @@ def calcKWHr(sumI, startChargeTime):
 
 #file logger as backup incase internet is down
 def logTotalKwHr(kwHr):
+    try:
+        doc = datastore_client.collection('totalCharge').document('allTimeSum')
+        storedTotal = doc.get().to_dict()['kwHr']
+        doc.set({'kwHr': (storedTotal + kwHr)})
+    except Exception as e:
+        print ("failed firestore allTimeSum")
+        print (e)
+    try:
+        key = datastore_client.collection('totalCharge').document()
+        key.set({
+            'timeStamp': datetime.datetime.utcnow(),
+            'I': 0,
+            'kwHr': kwHr
+        })
+    except Exception as e:
+        print ("failed firestore totalCharge")
+        print (e)
+        
     with open("log.csv", "a") as myfile:
         myfile.write(str(datetime.datetime.now()) + ', ' + str(kwHr) + '\n')
 
@@ -88,7 +109,7 @@ def processCurrent(ser, sharedDict, configuration):
             I  = float(line.split(' ')[1].strip())  #get the current reading
             sharedDict['I'] = I
             #currents bellow 1 amp are not accurate
-            if I > 1:
+            if I > 3:
                 newupdate = 2 * 60 /2  #update google sheet once every two minutes
                 if newupdate != update:
                     count = 0
@@ -96,6 +117,7 @@ def processCurrent(ser, sharedDict, configuration):
             else:   #update google sheet once every hour
                 update = 60 * 60 /2
 
+                #sumI = [1,1]
                 if(len(sumI) > 1):  #must be end of charge, send summary information
                     totalKwHr = calcKWHr(sumI, startChargeTime)
                     print ('total charge was ' + str(totalKwHr))
@@ -116,13 +138,25 @@ def processCurrent(ser, sharedDict, configuration):
                 sumI.append(I)
                 endChargeTime = datetime.datetime.now()
 
-            if count % update == 0 or abs(I - prevI) > .5: #update google sheet every time there is a change in curren tby more than .5 amp
-                count = 0
+            if ('parkCount' in sharedDict and sharedDict['parkCount'] == 5) or count % update == 0 or abs(I - prevI) > 1.5: #update google sheet every time there is a change in curren tby more than .5 amp
+                
                 kwHr = calcKWHr(sumI, startChargeTime)
-                print ('update spreadsheet ' + str(I) + ' - ' + str(kwHr))
+                print ('update spreadsheet ' + str(I) + ' - ' + str(kwHr) + ' count: ' +str(count) + ' prevI: ' + str(prevI))
                 newUpdate = 'http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit'
                 print (newUpdate)
                 r = requests.get(newUpdate)
+                
+                try:
+                    key = datastore_client.collection('activeCharge').document()
+                    key.set({
+                        'timeStamp': datetime.datetime.utcnow(),
+                        'I': I,
+                        'kwHr': kwHr
+                    })
+                except Exception as e:
+                    print ("failed firestore activeCharge")
+                    print (e)
+                count = 0
 
             prevI = I
         except Exception as e:
@@ -236,6 +270,16 @@ def main():
         os.chdir(sys.argv[1])
 
     print ('cwd is: ' + os.getcwd())
+    
+    
+    try:
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = "keys/rainorshine98040-firestore_user.json"
+        global datastore_client
+        datastore_client = firestore.Client()
+    except Exception as e:
+        print ("to connect to google firestore")
+        print (e)
+        time.sleep(15)
         
     #make sure we have the correct device
 
