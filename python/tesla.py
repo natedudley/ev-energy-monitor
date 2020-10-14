@@ -77,6 +77,28 @@ def logTotalKwHr(kwHr):
     except Exception as e:
         print ("failed firestore allTimeSum")
         print (e)
+        
+    try:
+        byMonthdoc = datastore_client.collection('byMonth').document('records')
+        byMonthDict = byMonthdoc.get().to_dict()
+        orderbyMonthDoc = datastore_client.collection('byMonth').document('keyOrder')
+        keyOrderbyMonth = orderbyMonthDoc.get().to_dict()['list']
+        dateStr = datetime.datetime.now().strftime("%b%-y")
+        
+        if not dateStr in byMonthDict:
+            byMonthDict[byMonthDict] = 0
+            keyOrderbyMonth.append(dateStr)
+            orderbyMonthDoc.set({'list': keyOrderbyMonth})
+            
+        byMonthDict[dateStr] += kwHr
+        byMonthdoc.set(byMonthDict)    
+        
+        
+    except Exception as e:
+        print ("failed firestore month sum")
+        print (e)
+    
+    
     try:
         key = datastore_client.collection('totalCharge').document()
         key.set({
@@ -153,9 +175,28 @@ def processCurrent(ser, sharedDict, configuration):
                         'I': I,
                         'kwHr': kwHr
                     })
+                    key = datastore_client.collection('activeCharge').document('now')
+                    key.set({
+                        'timeStamp': datetime.datetime.utcnow(),
+                        'I': I,
+                        'kwHr': kwHr
+                    })
                 except Exception as e:
                     print ("failed firestore activeCharge")
                     print (e)
+                
+                try:
+                    activeCharge_ref = datastore_client.collection('activeCharge')
+                    now = datetime.datetime.now() - relativedelta(days=+14)
+                    docs = activeCharge_ref.where('timeStamp', '<', now).order_by('timeStamp',
+                                                                 direction=firestore.Query.ASCENDING).limit(10).stream()
+                    for doc in docs:
+                        datastore_client.collection('activeCharge').document(doc.id).delete()
+                    
+                except Exception as e:
+                    print ("failed firestore delete activeCharge")
+                    print (e)
+                
                 count = 0
 
             prevI = I
