@@ -115,32 +115,27 @@ def logTotalKwHr(kwHr):
 
 #run as a thread to read the current sensing arduino via serial port
 def processCurrent(ser, sharedDict, configuration):
-    count = 0
-    update = 10
-    prevI = 0
     startChargeTime = datetime.datetime.now()
     endChargeTime = datetime.datetime.now()
     fmt = "%Y-%m-%d %H:%M:%S %Z%z"
-
+    
+    updateActiveCharge = {
+        'freq' : relativedelta(hours=2),
+        'lastUpdateTime' : (datetime.datetime.now() - relativedelta(hours=2)),
+        'prevI': 0
+    }
+    
     sumI = []
 
     while True:
         try:
-            count += 1
             line = ser.readline().decode("utf-8") #read ardiono about once every two seconds
             I  = float(line.split(' ')[1].strip())  #get the current reading
             sharedDict['I'] = I
-            #currents bellow 1 amp are not accurate
-            if I > 3:
-                newupdate = 2 * 60 /2  #update google sheet once every two minutes
-                if newupdate != update:
-                    count = 0
-                update = newupdate
-            else:   #update google sheet once every hour
-                update = 60 * 60 /2
+            sharedDict['timeToNextLog'] = ((updateActiveCharge['lastUpdateTime']+updateActiveCharge['freq']) - datetime.datetime.now())
 
-                #sumI = [1,1]
-                if(len(sumI) > 1):  #must be end of charge, send summary information
+            if I < 3:
+                if len(sumI) > 1:  #must be end of charge, send summary information
                     totalKwHr = calcKWHr(sumI, startChargeTime)
                     print ('total charge was ' + str(totalKwHr))
                     r = requests.get('http://docs.google.com/forms/d/'+configuration['googleFormTotalKW']+'/formResponse?ifq&entry.1201832211='+str(totalKwHr)+'&submit=Submit')
@@ -148,22 +143,28 @@ def processCurrent(ser, sharedDict, configuration):
                     
                 sumI = []
                 startChargeTime = datetime.datetime.now()
-
-                
-
-            #detect that car is plugged in and assume parked
-            if I > 1:
+            else:
+                #detect that car is plugged in and assume parked
                 sharedDict['wasParked'] = True
                 sharedDict['isParked'] = True
-
-            if I > 3:
                 sumI.append(I)
                 endChargeTime = datetime.datetime.now()
 
-            if ('parkCount' in sharedDict and sharedDict['parkCount'] == 5) or count % update == 0 or abs(I - prevI) > 1.5: #update google sheet every time there is a change in curren tby more than .5 amp
+            if abs(I - updateActiveCharge['prevI']) > 2:
+                updateActiveCharge['freq'] = relativedelta(seconds=10)
+                
+            if datetime.datetime.now() - updateActiveCharge['freq'] > updateActiveCharge['lastUpdateTime']:
+                updateActiveCharge['lastUpdateTime'] = datetime.datetime.now()
+                if I > 5:
+                    updateActiveCharge['freq'] = relativedelta(minutes=5)
+                else:
+                    updateActiveCharge['freq'] = relativedelta(hours=3)
+                    
+                updateActiveCharge['prevI'] = I
+                
                 
                 kwHr = calcKWHr(sumI, startChargeTime)
-                print ('update spreadsheet ' + str(I) + ' - ' + str(kwHr) + ' count: ' +str(count) + ' prevI: ' + str(prevI))
+                print ('update spreadsheet ' + str(I) + ' - ' + str(kwHr))
                 newUpdate = 'http://docs.google.com/forms/d/'+configuration['googleFormRealTimeKW']+'/formResponse?ifq&entry.2094522101='+str(I)+'&entry.33110511='+str(kwHr)+'&submit=Submit'
                 print (newUpdate)
                 r = requests.get(newUpdate)
@@ -197,9 +198,6 @@ def processCurrent(ser, sharedDict, configuration):
                     print ("failed firestore delete activeCharge")
                     print (e)
                 
-                count = 0
-
-            prevI = I
         except Exception as e:
             print(e)
 
@@ -272,6 +270,8 @@ def processOutput(sharedDict):
                 msg = msg + 'wasParked: ' + str(sharedDict['wasParked']) + ' '
             if 'isParked' in sharedDict:
                 msg = msg + 'isParked: ' + str(sharedDict['isParked']) + ' '
+            if 'timeToNextLog' in sharedDict:
+                msg = msg + 'timeToNextLog: ' + str(sharedDict['timeToNextLog'].total_seconds()) + ' '
 
         except Exception as e:
             print (e)
