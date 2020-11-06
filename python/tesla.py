@@ -86,7 +86,7 @@ def logTotalKwHr(kwHr):
         dateStr = datetime.datetime.now().strftime("%b%-y")
         
         if not dateStr in byMonthDict:
-            byMonthDict[byMonthDict] = 0
+            byMonthDict[dateStr] = 0
             keyOrderbyMonth.append(dateStr)
             orderbyMonthDoc.set({'list': keyOrderbyMonth})
             
